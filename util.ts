@@ -1,4 +1,5 @@
 import { Connection } from "mysql";
+import { UrlRecord } from './types';
 
 const charpool = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -22,14 +23,14 @@ function genRandomString(size: number): string {
  * @returns a function that generates promise of boolean representing if the short url is in the database
  */
 function searchShortUrl(connection: Connection, tableName: string) {
-  return function (shortUrl: string): Promise<boolean> {
+  return function (shortUrl: string): Promise<UrlRecord[]> {
     return new Promise(function (resolve, reject) {
-      connection.query(`SELECT Hash FROM ${tableName} WHERE Hash = "${shortUrl}"`,
+      connection.query(`SELECT * FROM ${tableName} WHERE Hash = "${shortUrl}"`,
         function (err, results, fields) {
           if (err) { reject(err); }
-          console.log("searching hash in table (results, fields, empty)", results, fields, results.length == 0);
-          
-          resolve(results.length == 0);
+          console.log("searching hash in table (results, fields)", results, fields);
+
+          resolve(results);
         });
     })
   }
@@ -47,7 +48,7 @@ async function findValidHash(checker: (url: string) => Promise<boolean>): Promis
     try {
       sucess = await checker(hash);
       console.log(sucess);
-    } catch(err) {
+    } catch (err) {
       return Promise.reject(err);
     }
   } while (!sucess);

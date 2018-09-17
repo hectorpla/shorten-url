@@ -62,7 +62,13 @@ apiRounter.post('/shorturl/new', bodyParser.text({ type: "text/plain" }),
         });
       }
 
-      const generationPromise = findValidHash(searchShortUrl(mysqlConnection, TABLE_NAME));
+      const searchPromise = searchShortUrl(mysqlConnection, TABLE_NAME);
+
+      const generationPromise = findValidHash(function(hash) {
+        return searchPromise(hash).then(function(results) {
+          return results.length == 0;
+        })
+      });
 
       const insertPromise = generationPromise.then(function (hash) {
         return insertURL({
@@ -73,21 +79,41 @@ apiRounter.post('/shorturl/new', bodyParser.text({ type: "text/plain" }),
         })
       });
 
-      insertPromise.then(function(result) {
+      insertPromise.then(function (result) {
         res.json({
           original_url: result.longUrl,
           short_url: result.shortUrl,
           success: true
         });
-      }).catch(function(err) {
+      }).catch(function (err) {
         res.json(errorHandler(err, url));
       });
-    })
-  }); 
+    });
+  });
 
-apiRounter.get('/shorturl', function () {
+apiRounter.get('/shorturl/:locator', function (req, res) {
   // TODO 1. search in db, 2. redirect if exist
-})
+  const searchPromise = searchShortUrl(mysqlConnection, TABLE_NAME);
+  const locator = req.params.locator;
+  searchPromise(locator).then(function(results) {
+    if (results.length == 0) {
+      res.json({
+        locator,
+        success: false
+      })
+    } else {
+      console.log(results);
+      // res.json(results[0]);
+      res.redirect(results[0].OriginalURL);
+    }
+  }).catch(function(err) {
+    console.log(err);
+    res.json({
+      locator,
+      success: false
+    })
+  });
+});
 
 app.use('/api', apiRounter);
 
